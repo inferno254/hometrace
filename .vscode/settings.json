@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "auxly": {
+      "command": "node",
+      "args": [
+        "c:\\Users\\Shemko254\\.vscode\\extensions\\tzamun-arabia.auxly-extension-0.1.8\\dist\\mcp-server\\index.js"
+      ],
+      "env": {
+        "AUXLY_WORKSPACE_PATH": "c:\\Users\\Shemko254\\Downloads\\Telegram Desktop\\hometrace",
+        "AUXLY_API_URL": "https://auxly.tzamun.com"
+      }
+    }
+  }
+}

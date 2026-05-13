@@ -1,0 +1,28 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+body {
+  margin: 0;
+  background: #0b0d10;
+  color: #e8eaf0;
+  font-family: 'DM Sans', system-ui, sans-serif;
+  min-height: 100vh;
+}
+
+.glass-card {
+  @apply rounded-2xl border border-white/10 bg-white/[0.04] backdrop-blur-md shadow-[0_0_60px_-20px_rgba(167,139,250,0.35)];
+}
+
+.text-gradient {
+  @apply bg-gradient-to-r from-trace-cyan to-trace-violet bg-clip-text text-transparent;
+}
+
+.leaflet-container {
+  background: #13161c;
+  border-radius: 1rem;
+}
