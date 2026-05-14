@@ -164,12 +164,21 @@ VITE_HOMETRACE_WHATSAPP_URL=    # optional wa.me link
 
 ### Phase A — Foundation (this repo slice)
 - [x] Author this `todo.md`
-- [ ] Scaffold Vite app + Tailwind + router + query client
-- [ ] Implement layout components + theme
-- [ ] Public pages: Home, Browse, Detail
-- [ ] Supabase SQL file + README setup steps
-- [ ] Admin: login shell, map, CRUD form, storage upload
-- [ ] Wire Gemini helper (optional)
+- [x] Scaffold Vite app + Tailwind + router + query client
+- [x] Implement layout components + theme
+- [x] Public pages: Home, Browse, Detail
+- [x] Supabase SQL file + README setup steps
+- [x] Admin: login shell, map, CRUD form, storage upload
+- [x] Wire Gemini helper (optional)
+- [x] Edit property page (reuse form with edit mode)
+- [x] Delete property from dashboard
+- [x] Image carousel/gallery on listing detail
+- [x] Pagination on browse page
+- [x] Toast notifications for actions
+- [x] Loading skeletons on all pages
+- [x] Mobile-responsive navigation (hamburger menus)
+- [x] Fade-in scroll animations
+- [x] Admin search + edit/delete action buttons
 
 ### Phase B — Hardening
 - [ ] Edge Function for AI + rate limits

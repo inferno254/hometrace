@@ -1,8 +1,9 @@
-import { FormEvent, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { FormEvent, useEffect, useState } from 'react'
+import { useNavigate, useParams } from 'react-router-dom'
 import { Sparkles } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { generateHouseDescription } from '../../lib/gemini'
+import { useToast } from '../../components/Toast'
 
 const AMENITIES = ['WiFi', 'Parking', 'Water 24/7', 'Electricity', 'Security', 'CCTV', 'Gym', 'Backup Generator']
 
@@ -27,33 +28,80 @@ type FormShape = {
   amenities: string[]
 }
 
+const EMPTY_FORM: FormShape = {
+  title: '',
+  description: '',
+  price: '',
+  price_type: 'monthly',
+  bedrooms: '',
+  bathrooms: '',
+  property_type: 'apartment',
+  county: '',
+  town: '',
+  area_label: '',
+  estate: '',
+  address: '',
+  latitude: '',
+  longitude: '',
+  owner_phone: '',
+  is_available: true,
+  is_published: false,
+  amenities: [],
+}
+
 export function AdminPropertyFormPage() {
+  const { id } = useParams<{ id: string }>()
+  const isEdit = Boolean(id)
   const navigate = useNavigate()
+  const { toast } = useToast()
   const [busy, setBusy] = useState(false)
   const [aiBusy, setAiBusy] = useState(false)
-  const [note, setNote] = useState<string | null>(null)
-  const [form, setForm] = useState<FormShape>({
-    title: '',
-    description: '',
-    price: '',
-    price_type: 'monthly',
-    bedrooms: '',
-    bathrooms: '',
-    property_type: 'apartment',
-    county: '',
-    town: '',
-    area_label: '',
-    estate: '',
-    address: '',
-    latitude: '',
-    longitude: '',
-    owner_phone: '',
-    is_available: true,
-    is_published: false,
-    amenities: [],
-  })
+  const [loadingData, setLoadingData] = useState(isEdit)
+  const [form, setForm] = useState<FormShape>(EMPTY_FORM)
   const [files, setFiles] = useState<FileList | null>(null)
   const [aiText, setAiText] = useState('')
+  const [existingImages, setExistingImages] = useState<string[]>([])
+
+  useEffect(() => {
+    if (!id || !supabase) return
+    ;(async () => {
+      const { data: prop, error } = await supabase
+        .from('properties')
+        .select('*, property_images(image_url, is_cover), amenities(name)')
+        .eq('id', id)
+        .single()
+      if (error || !prop) {
+        toast('Failed to load property for editing', 'error')
+        navigate('/admin')
+        return
+      }
+      setForm({
+        title: prop.title ?? '',
+        description: prop.description ?? '',
+        price: String(prop.price ?? ''),
+        price_type: prop.price_type ?? 'monthly',
+        bedrooms: prop.bedrooms != null ? String(prop.bedrooms) : '',
+        bathrooms: prop.bathrooms != null ? String(prop.bathrooms) : '',
+        property_type: prop.property_type ?? 'apartment',
+        county: prop.county ?? '',
+        town: prop.town ?? '',
+        area_label: prop.area_label ?? '',
+        estate: prop.estate ?? '',
+        address: prop.address ?? '',
+        latitude: prop.latitude != null ? String(prop.latitude) : '',
+        longitude: prop.longitude != null ? String(prop.longitude) : '',
+        owner_phone: prop.owner_phone ?? '',
+        is_available: prop.is_available ?? true,
+        is_published: prop.is_published ?? false,
+        amenities: (prop.amenities as { name: string }[] | undefined)?.map((a) => a.name) ?? [],
+      })
+      setAiText(prop.ai_generated_description ?? '')
+      setExistingImages(
+        (prop.property_images as { image_url: string }[] | undefined)?.map((i) => i.image_url) ?? [],
+      )
+      setLoadingData(false)
+    })()
+  }, [id, navigate, toast])
 
   const toggleAmenity = (a: string) => {
     setForm((f) => ({
@@ -64,7 +112,6 @@ export function AdminPropertyFormPage() {
 
   const runGemini = async () => {
     setAiBusy(true)
-    setNote(null)
     try {
       const text = await generateHouseDescription({
         property_type: form.property_type,
@@ -79,16 +126,23 @@ export function AdminPropertyFormPage() {
       })
       setAiText(text)
     } catch (e) {
-      setNote((e as Error).message)
+      toast((e as Error).message, 'error')
     } finally {
       setAiBusy(false)
     }
   }
 
+  const removeExistingImage = async (url: string) => {
+    setExistingImages((prev) => prev.filter((u) => u !== url))
+  }
+
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault()
-    setNote(null)
     if (!supabase) return
+    if (!form.title.trim() || !Number(form.price)) {
+      toast('Title and numeric price required.', 'error')
+      return
+    }
     setBusy(true)
     try {
       const row = {
@@ -110,19 +164,28 @@ export function AdminPropertyFormPage() {
         owner_phone: form.owner_phone.trim() || null,
         is_available: form.is_available,
         is_published: form.is_published,
-        cover_image_url: null as string | null,
       }
 
-      if (!row.title || !Number.isFinite(row.price)) {
-        setNote('Title and numeric price required.')
-        setBusy(false)
-        return
+      let pid: string
+
+      if (isEdit && id) {
+        const { error: upErr } = await supabase.from('properties').update(row).eq('id', id)
+        if (upErr) throw upErr
+        pid = id
+
+        if (form.amenities.length) {
+          await supabase.from('amenities').delete().eq('property_id', pid)
+          await supabase.from('amenities').insert(form.amenities.map((name) => ({ property_id: pid, name })))
+        }
+      } else {
+        const { data: prop, error: pe } = await supabase.from('properties').insert(row).select('id').single()
+        if (pe || !prop) throw pe ?? new Error('Insert failed')
+        pid = prop.id as string
+
+        if (form.amenities.length) {
+          await supabase.from('amenities').insert(form.amenities.map((name) => ({ property_id: pid, name })))
+        }
       }
-
-      const { data: prop, error: pe } = await supabase.from('properties').insert(row).select('id').single()
-      if (pe || !prop) throw pe ?? new Error('Insert failed')
-
-      const pid = prop.id as string
 
       const uploadedUrls: string[] = []
       if (files?.length) {
@@ -135,41 +198,62 @@ export function AdminPropertyFormPage() {
         }
       }
 
-      if (uploadedUrls.length > 0) {
-        await supabase.from('property_images').insert(
-          uploadedUrls.map((image_url, i) => ({
-            property_id: pid,
-            image_url,
-            is_cover: i === 0,
-            sort_order: i,
-          })),
-        )
-        await supabase.from('properties').update({ cover_image_url: uploadedUrls[0] }).eq('id', pid)
+      const allImages = [...existingImages, ...uploadedUrls]
+
+      if (isEdit && id) {
+        if (uploadedUrls.length > 0) {
+          await supabase.from('property_images').insert(
+            uploadedUrls.map((image_url, i) => ({
+              property_id: pid,
+              image_url,
+              is_cover: allImages.length === uploadedUrls.length ? i === 0 : false,
+              sort_order: existingImages.length + i,
+            })),
+          )
+        }
+        if (allImages.length > 0) {
+          await supabase.from('properties').update({ cover_image_url: allImages[0] }).eq('id', pid)
+        }
+      } else {
+        if (uploadedUrls.length > 0) {
+          await supabase.from('property_images').insert(
+            uploadedUrls.map((image_url, i) => ({
+              property_id: pid,
+              image_url,
+              is_cover: i === 0,
+              sort_order: i,
+            })),
+          )
+          await supabase.from('properties').update({ cover_image_url: uploadedUrls[0] }).eq('id', pid)
+        }
       }
 
-      if (form.amenities.length) {
-        await supabase.from('amenities').insert(
-          form.amenities.map((name) => ({
-            property_id: pid,
-            name,
-          })),
-        )
-      }
-
+      toast(isEdit ? 'Property updated' : 'Property listed successfully!', 'success')
       navigate('/admin')
     } catch (err) {
-      setNote((err as Error).message)
+      toast((err as Error).message, 'error')
     } finally {
       setBusy(false)
     }
   }
 
+  if (loadingData) {
+    return (
+      <div className="space-y-4">
+        <div className="skeleton h-8 w-48" />
+        <div className="skeleton h-[600px] w-full" />
+      </div>
+    )
+  }
+
   return (
     <div className="max-w-3xl space-y-6">
       <div>
-        <h1 className="font-display text-2xl font-bold">Ingress a listing</h1>
+        <h1 className="font-display text-2xl font-bold">{isEdit ? 'Edit property' : 'Ingress a listing'}</h1>
         <p className="text-sm text-zinc-500 mt-2">
-          Public cards show only county / town / area_label. Estate, address, coords &amp; owner phone stay admin-only.
+          {isEdit
+            ? 'Update fields below. Images can be added or removed.'
+            : 'Public cards show only county / town / area_label. Estate, address, coords &amp; owner phone stay admin-only.'}
         </p>
       </div>
 
@@ -302,14 +386,16 @@ export function AdminPropertyFormPage() {
         />
 
         <div>
-          <p className="text-xs text-zinc-500 mb-2">Amenity chips → surface on public blurbs.</p>
+          <p className="text-xs text-zinc-500 mb-2">Amenity chips</p>
           <div className="flex flex-wrap gap-2">
             {AMENITIES.map((a) => (
               <button
                 key={a}
                 type="button"
-                className={`rounded-full px-3 py-1 text-xs border ${
-                  form.amenities.includes(a) ? 'bg-violet-500/30 border-violet-400/50 text-white' : 'border-white/10 text-zinc-400'
+                className={`rounded-full px-3 py-1 text-xs border transition-all duration-150 ${
+                  form.amenities.includes(a)
+                    ? 'bg-violet-500/30 border-violet-400/50 text-white'
+                    : 'border-white/10 text-zinc-400 hover:border-white/30'
                 }`}
                 onClick={() => toggleAmenity(a)}
               >
@@ -319,46 +405,80 @@ export function AdminPropertyFormPage() {
           </div>
         </div>
 
+        {/* Existing images */}
+        {existingImages.length > 0 && (
+          <div>
+            <p className="text-xs text-zinc-500 mb-2">Current images ({existingImages.length})</p>
+            <div className="flex flex-wrap gap-2">
+              {existingImages.map((url) => (
+                <div key={url} className="relative group">
+                  <img src={url} alt="" className="h-16 w-16 rounded-lg object-cover" />
+                  <button
+                    type="button"
+                    onClick={() => removeExistingImage(url)}
+                    className="absolute -top-1.5 -right-1.5 h-5 w-5 rounded-full bg-red-500 text-[10px] text-white opacity-0 group-hover:opacity-100 transition-opacity"
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         <div className="border border-white/10 rounded-xl p-4 space-y-2">
-          <p className="text-xs text-zinc-500 mb-2">Imagery uploads (Supabase bucket `property-images`)</p>
-          <input type="file" accept="image/*" multiple onChange={(e) => setFiles(e.target.files)} />
+          <p className="text-xs text-zinc-500 mb-2">
+            {isEdit ? 'Add more images' : 'Imagery uploads (Supabase bucket `property-images`)'}
+          </p>
+          <input
+            type="file"
+            accept="image/*"
+            multiple
+            className="text-xs text-zinc-400 file:mr-3 file:rounded-lg file:border-0 file:bg-white/10 file:px-3 file:py-1.5 file:text-xs file:text-white hover:file:bg-white/20 transition file:cursor-pointer"
+            onChange={(e) => setFiles(e.target.files)}
+          />
         </div>
 
         <div className="flex flex-wrap gap-3">
           <button
             type="button"
             disabled={aiBusy}
-            className="inline-flex items-center gap-2 rounded-xl border border-violet-400/40 bg-violet-500/10 px-4 py-2 text-sm text-violet-100"
+            className="inline-flex items-center gap-2 rounded-xl border border-violet-400/40 bg-violet-500/10 px-4 py-2 text-sm text-violet-100 hover:bg-violet-500/20 transition-colors"
             onClick={() => runGemini()}
           >
             <Sparkles className="h-4 w-4" /> {aiBusy ? 'Drafting narrative...' : 'Gemini prose layer'}
           </button>
-          {aiText && (
-            <span className="text-xs text-zinc-500 self-center">{aiText.length} chars drafted</span>
-          )}
+          {aiText && <span className="text-xs text-zinc-500 self-center">{aiText.length} chars drafted</span>}
         </div>
         {aiText && <textarea readOnly value={aiText} className="input-ht min-h-[120px]" />}
 
         <div className="flex flex-wrap gap-6 text-sm">
-          <label className="flex items-center gap-2 text-zinc-300">
-            <input type="checkbox" checked={form.is_available} onChange={(e) => setForm({ ...form, is_available: e.target.checked })} />
+          <label className="flex items-center gap-2 text-zinc-300 cursor-pointer hover:text-white transition-colors">
+            <input type="checkbox" checked={form.is_available} onChange={(e) => setForm({ ...form, is_available: e.target.checked })} className="accent-cyan-500" />
             Listed as available
           </label>
-          <label className="flex items-center gap-2 text-zinc-300">
-            <input type="checkbox" checked={form.is_published} onChange={(e) => setForm({ ...form, is_published: e.target.checked })} />
+          <label className="flex items-center gap-2 text-zinc-300 cursor-pointer hover:text-white transition-colors">
+            <input type="checkbox" checked={form.is_published} onChange={(e) => setForm({ ...form, is_published: e.target.checked })} className="accent-violet-500" />
             Publish to public mosaic
           </label>
         </div>
 
-        {note && <p className="text-sm text-red-400">{note}</p>}
-
-        <button
-          disabled={busy}
-          type="submit"
-          className="w-full rounded-xl bg-gradient-to-r from-green-600 to-teal-500 py-3 text-sm font-bold text-black disabled:opacity-50"
-        >
-          {busy ? 'Committing dossier…' : 'Save listing pipeline'}
-        </button>
+        <div className="flex gap-3">
+          <button
+            disabled={busy}
+            type="submit"
+            className="flex-1 rounded-xl bg-gradient-to-r from-cyan-500 to-violet-500 py-3 text-sm font-bold text-trace-dusk disabled:opacity-50 hover:opacity-90 transition-opacity"
+          >
+            {busy ? 'Saving...' : isEdit ? 'Update property' : 'Save listing'}
+          </button>
+          <button
+            type="button"
+            onClick={() => navigate('/admin')}
+            className="rounded-xl border border-white/15 px-6 py-3 text-sm text-zinc-400 hover:text-white hover:bg-white/5 transition-colors"
+          >
+            Cancel
+          </button>
+        </div>
       </form>
       <style>{`
         .input-ht {
@@ -369,6 +489,11 @@ export function AdminPropertyFormPage() {
           padding: 0.65rem 0.85rem;
           font-size: 0.875rem;
           color: #f8fafc;
+          transition: border-color 0.2s;
+        }
+        .input-ht:focus {
+          outline: none;
+          border-color: rgb(34 211 238 / 0.5);
         }
         .input-ht::placeholder { color: rgb(161 161 170); }
       `}</style>
