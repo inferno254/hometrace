@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link, Navigate, Outlet } from 'react-router-dom'
-import { LayoutDashboard, Map, PlusCircle, Menu, X } from 'lucide-react'
+import { LayoutDashboard, Map, PlusCircle, Menu, X, Phone } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 
 export function AdminLayout() {
@@ -14,6 +14,7 @@ export function AdminLayout() {
   const navLinks = [
     { to: '/admin', label: 'Dashboard', icon: LayoutDashboard },
     { to: '/admin/map', label: 'Operations map', icon: Map },
+    { to: '/admin/inquiries', label: 'Inquiries', icon: Phone },
     { to: '/admin/new', label: 'Add house', icon: PlusCircle, accent: true },
   ]
 

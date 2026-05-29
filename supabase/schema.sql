@@ -22,6 +22,8 @@ create table if not exists public.properties (
   bedrooms int,
   bathrooms int,
   property_type text not null default 'apartment',
+  furnished boolean default false,
+  size_sqm numeric,
   county text not null default '',
   town text not null default '',
   area_label text,
@@ -50,6 +52,15 @@ create table if not exists public.amenities (
   id uuid primary key default gen_random_uuid(),
   property_id uuid not null references public.properties (id) on delete cascade,
   name text not null
+);
+
+create table if not exists public.property_inquiries (
+  id uuid primary key default gen_random_uuid(),
+  property_id uuid not null references public.properties (id) on delete cascade,
+  name text not null,
+  phone text not null,
+  message text,
+  created_at timestamptz not null default now()
 );
 
 create index if not exists idx_properties_pub on public.properties (is_published, is_available, county, town);
@@ -143,6 +154,8 @@ returns table (
   cover_image_url text,
   image_urls text[],
   amenity_names text[],
+  furnished boolean,
+  size_sqm numeric,
   created_at timestamptz
 )
 language sql
@@ -175,6 +188,8 @@ as $$
        from public.amenities a where a.property_id = p.id),
       array[]::text[]
     ) as amenity_names,
+    p.furnished,
+    p.size_sqm,
     p.created_at
   from public.properties p
   where p.is_published and p.is_available;
@@ -198,6 +213,8 @@ returns table (
   cover_image_url text,
   image_urls text[],
   amenity_names text[],
+  furnished boolean,
+  size_sqm numeric,
   created_at timestamptz
 )
 language sql
@@ -208,6 +225,29 @@ as $$
   select * from public.fetch_public_properties() fp where fp.id = target_id limit 1;
 $$;
 
+create or replace function public.submit_inquiry(
+  p_property_id uuid,
+  p_name text,
+  p_phone text,
+  p_message text default null
+)
+returns uuid
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  new_id uuid;
+begin
+  insert into public.property_inquiries (property_id, name, phone, message)
+  values (p_property_id, p_name, p_phone, p_message)
+  returning id into new_id;
+  return new_id;
+end;
+$$;
+
+grant execute on function public.submit_inquiry(uuid, text, text, text) to anon, authenticated;
+
 grant execute on function public.fetch_public_properties() to anon, authenticated;
 grant execute on function public.fetch_public_property(uuid) to anon, authenticated;
 
@@ -216,6 +256,7 @@ alter table public.profiles enable row level security;
 alter table public.properties enable row level security;
 alter table public.property_images enable row level security;
 alter table public.amenities enable row level security;
+alter table public.property_inquiries enable row level security;
 
 -- Profiles: users read/update self
 create policy "profiles_select_own" on public.profiles for select using (auth.uid() = id);
@@ -234,6 +275,9 @@ create policy "properties_admin_delete" on public.properties
 create policy "images_admin_all" on public.property_images
   for all using (public.is_admin()) with check (public.is_admin());
 create policy "amenities_admin_all" on public.amenities
+  for all using (public.is_admin()) with check (public.is_admin());
+
+create policy "inquiries_admin_all" on public.property_inquiries
   for all using (public.is_admin()) with check (public.is_admin());
 
 -- No direct SELECT on properties for anon (prevents column leaks)

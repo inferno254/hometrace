@@ -1,10 +1,12 @@
 import { useState } from 'react'
 import { Link, Outlet } from 'react-router-dom'
-import { MapPin, Phone, Menu, X } from 'lucide-react'
+import { MapPin, Phone, Menu, X, Heart, GitCompare } from 'lucide-react'
 import { env } from '../lib/env'
+import { useFavorites } from '../hooks/useFavorites'
 
 export function PublicLayout() {
   const [menuOpen, setMenuOpen] = useState(false)
+  const { count } = useFavorites()
 
   return (
     <div className="min-h-screen flex flex-col bg-trace-dusk">
@@ -13,9 +15,18 @@ export function PublicLayout() {
           <Link to="/" className="font-display text-xl font-bold tracking-tight text-white">
             Home<span className="text-gradient">Trace</span>
           </Link>
-          <nav className="hidden sm:flex items-center gap-6 text-sm font-medium text-zinc-300">
+          <nav className="hidden sm:flex items-center gap-5 text-sm font-medium text-zinc-300">
             <Link to="/browse" className="hover:text-white transition-colors">
               Browse
+            </Link>
+            <Link to="/saved" className="inline-flex items-center gap-1 hover:text-white transition-colors">
+              <Heart className="h-4 w-4 text-red-400" />
+              Saved
+              {count > 0 && <span className="text-[10px] bg-red-400/20 text-red-300 rounded-full px-1.5">{count}</span>}
+            </Link>
+            <Link to="/compare" className="inline-flex items-center gap-1 hover:text-white transition-colors">
+              <GitCompare className="h-4 w-4 text-cyan-400" />
+              Compare
             </Link>
             <a
               href={env.whatsappUrl || '#'}
@@ -41,6 +52,20 @@ export function PublicLayout() {
                 onClick={() => setMenuOpen(false)}
               >
                 Browse homes
+              </Link>
+              <Link
+                to="/saved"
+                className="rounded-xl px-3 py-2 hover:bg-white/5 hover:text-white transition-colors"
+                onClick={() => setMenuOpen(false)}
+              >
+                <Heart className="h-3.5 w-3.5 inline text-red-400" /> Saved ({count})
+              </Link>
+              <Link
+                to="/compare"
+                className="rounded-xl px-3 py-2 hover:bg-white/5 hover:text-white transition-colors"
+                onClick={() => setMenuOpen(false)}
+              >
+                <GitCompare className="h-3.5 w-3.5 inline text-cyan-400" /> Compare
               </Link>
               {env.whatsappUrl && env.whatsappUrl !== '#' && (
                 <a

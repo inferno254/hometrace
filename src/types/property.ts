@@ -15,6 +15,8 @@ export type PublicPropertyRow = {
   cover_image_url: string | null
   image_urls: string[] | null
   amenity_names: string[] | null
+  furnished: boolean | null
+  size_sqm: number | null
   created_at: string
 }
 
@@ -40,7 +42,23 @@ export type DbProperty = {
   owner_phone: string | null
   is_available: boolean
   is_published: boolean
+  furnished: boolean | null
+  size_sqm: number | null
   cover_image_url: string | null
   created_at: string
   updated_at: string
+}
+
+export type PropertyInquiry = {
+  id: string
+  property_id: string
+  name: string
+  phone: string
+  message: string | null
+  created_at: string
+}
+
+export type ListingQuality = {
+  completeness: number
+  missing: string[]
 }

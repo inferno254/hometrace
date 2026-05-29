@@ -7,6 +7,40 @@ import { useToast } from '../../components/Toast'
 
 const AMENITIES = ['WiFi', 'Parking', 'Water 24/7', 'Electricity', 'Security', 'CCTV', 'Gym', 'Backup Generator']
 
+const TOWNS_BY_COUNTY: Record<string, string[]> = {
+  Nairobi: ['CBD', 'Westlands', 'Kilimani', 'Kileleshwa', 'Lavington', 'Parklands', 'Upper Hill', 'Riverside', 'Spring Valley', 'Muthaiga', 'Gigiri', 'Karen', 'Langata', 'Rongai (Nairobi side)', 'Madaraka', 'South B', 'South C', 'Eastlands', 'Buruburu', 'Umoja', 'Donholm', 'Embakasi', 'Utawala', 'Dandora', 'Kasarani', 'Roysambu', 'Kahawa', 'Githurai', 'Zimmerman', 'Mathare North', 'Pipeline'],
+  Kiambu: ['Kiambu Town', 'Thika', 'Ruiru', 'Ruaka', 'Kabete', 'Kikuyu', 'Limuru', 'Tigoni', 'Juja', 'Kinoo', 'Githunguri', 'Ngewa', 'Wangige', 'Nderu', 'Lari', 'Gatundu'],
+  Machakos: ['Machakos Town', 'Athi River', 'Kitengela', 'Mavoko', 'Kangundo', 'Tala', 'Matuu', 'Kathiani', 'Masinga', 'Yatta', 'Mwala'],
+  Kajiado: ['Ngong', 'Ongata Rongai', 'Kiserian', 'Isinya', 'Kajiado Town', 'Namanga', 'Bissil', 'Shompole', 'Magadi'],
+  Kisumu: ['Kisumu City', 'Ahero', 'Muhoroni', 'Koru', 'Kisumu West', 'Nyando', 'Miwani'],
+  Mombasa: ['Mombasa Island', 'Nyali', 'Bamburi', 'Likoni', 'Mtwapa', 'Shanzu', 'Tudor', 'Kizingo', 'Mikindani'],
+  Nakuru: ['Nakuru Town', 'Naivasha', 'Gilgil', 'Njoro', 'Molo', 'Mau Summit', 'Elementaita', 'Subukia', 'Bahati'],
+  Eldoret: ['Eldoret Town', 'Iten', 'Kapsowar', 'Tambach', 'Chepkorio', 'Kabarnet'],
+  Nyeri: ['Nyeri Town', 'Karatina', 'Othaya', 'Mukurweini', 'Kieni', 'Mathira', 'Tetu'],
+  Meru: ['Meru Town', 'Nkubu', 'Chuka', 'Chogoria', 'Maua', 'Timau', 'Nanyuki'],
+  'Uasin Gishu': ['Eldoret', 'Moiben', 'Soy', 'Kapsaret', 'Turbo', 'Ainabkoi'],
+  Kilifi: ['Kilifi Town', 'Malindi', 'Watamu', 'Mtwapa (Kilifi side)', 'Mariakani', 'Kaloleni', 'Rabai'],
+  Kwale: ['Kwale Town', 'Diani', 'Ukunda', 'Msambweni', 'Lunga Lunga', 'Shimoni'],
+  'Taita Taveta': ['Voi', 'Taveta', 'Wundanyi', 'Mwatate', 'Taita'],
+  Muranga: ['Muranga Town', 'Kangema', 'Kandara', 'Gatanga', 'Maragua', 'Kigumo'],
+  Kirinyaga: ['Kerugoya', 'Kutus', 'Sagana', 'Mwea', 'Gichugu', 'Ndia'],
+  Embu: ['Embu Town', 'Runyenjes', 'Siakago', 'Manyatta', 'Kyeni'],
+  Makueni: ['Wote', 'Kibwezi', 'Makindu', 'Mtito Andei', 'Sultan Hamud', 'Salama'],
+  Kitui: ['Kitui Town', 'Mwingi', 'Mutomo', 'Kwa Vonza', 'Ikutha', 'Kyuso'],
+  Nandi: ['Kapsabet', 'Nandi Hills', 'Kobujoi', 'Chepterit', 'Tinderet'],
+  Kericho: ['Kericho Town', 'Litein', 'Sotik', 'Buret', 'Londiani', 'Kipkelion'],
+  Bomet: ['Bomet Town', 'Sotik', 'Mogogosiek', 'Longisa', 'Chepalungu'],
+  'Trans Nzoia': ['Kitale', 'Kiminini', 'Kwanza', 'Endebess', 'Saboti'],
+  Bungoma: ['Bungoma Town', 'Webuye', 'Kimilili', 'Sirisia', 'Tongaren', 'Mt Elgon'],
+  Busia: ['Busia Town', 'Nambale', 'Port Victoria', 'Funyula', 'Teso North', 'Teso South'],
+  Siaya: ['Siaya Town', 'Bondo', 'Ugunja', 'Ukwala', 'Yala', 'Rarieda'],
+  'Homa Bay': ['Homa Bay Town', 'Mbita', 'Oyugis', 'Rachuonyo', 'Suba', 'Ndhiwa'],
+  Migori: ['Migori Town', 'Kehancha', 'Awendo', 'Rongo', 'Uriri', 'Suna'],
+  Kisii: ['Kisii Town', 'Ogembo', 'Nyamache', 'Keroka', 'Tabaka', 'Masimba'],
+  Kakamega: ['Kakamega Town', 'Mumias', 'Butere', 'Malava', 'Lurambi', 'Navakholo', 'Matungu', 'Khwisero'],
+  Laikipia: ['Nanyuki', 'Nyahururu', 'Rumuruti', 'Marmanet', 'Doldol', 'Kinamba'],
+}
+
 type FormShape = {
   title: string
   description: string
@@ -25,6 +59,8 @@ type FormShape = {
   owner_phone: string
   is_available: boolean
   is_published: boolean
+  furnished: boolean
+  size_sqm: string
   amenities: string[]
 }
 
@@ -46,6 +82,8 @@ const EMPTY_FORM: FormShape = {
   owner_phone: '',
   is_available: true,
   is_published: false,
+  furnished: false,
+  size_sqm: '',
   amenities: [],
 }
 
@@ -93,6 +131,8 @@ export function AdminPropertyFormPage() {
         owner_phone: prop.owner_phone ?? '',
         is_available: prop.is_available ?? true,
         is_published: prop.is_published ?? false,
+        furnished: prop.furnished ?? false,
+        size_sqm: prop.size_sqm != null ? String(prop.size_sqm) : '',
         amenities: (prop.amenities as { name: string }[] | undefined)?.map((a) => a.name) ?? [],
       })
       setAiText(prop.ai_generated_description ?? '')
@@ -164,6 +204,8 @@ export function AdminPropertyFormPage() {
         owner_phone: form.owner_phone.trim() || null,
         is_available: form.is_available,
         is_published: form.is_published,
+        furnished: form.furnished,
+        size_sqm: form.size_sqm === '' ? null : Number(form.size_sqm),
       }
 
       let pid: string
@@ -315,24 +357,46 @@ export function AdminPropertyFormPage() {
           ))}
         </select>
 
-        <div className="grid gap-4 sm:grid-cols-3">
+        <div className="grid gap-4 sm:grid-cols-2">
+          <label className="flex items-center gap-2 text-sm text-zinc-300 cursor-pointer hover:text-white transition-colors">
+            <input type="checkbox" checked={form.furnished} onChange={(e) => setForm({ ...form, furnished: e.target.checked })} className="accent-cyan-500" />
+            Furnished
+          </label>
           <input
+            type="number"
             className="input-ht"
-            placeholder="County"
+            placeholder="Size (m²)"
+            value={form.size_sqm}
+            onChange={(e) => setForm({ ...form, size_sqm: e.target.value })}
+          />
+        </div>
+
+        <div className="grid gap-4 sm:grid-cols-3">
+          <select
+            className="input-ht"
             required
             value={form.county}
-            onChange={(e) => setForm({ ...form, county: e.target.value })}
-          />
-          <input
-            className="input-ht"
-            placeholder="Town"
+            onChange={(e) => setForm({ ...form, county: e.target.value, town: '' })}
+          >
+            <option value="">Select county</option>
+            {['Nairobi', 'Kiambu', 'Machakos', 'Kajiado', 'Kisumu', 'Mombasa', 'Nakuru', 'Eldoret', 'Nyeri', 'Meru', 'Tharaka Nithi', 'Laikipia', 'Uasin Gishu', 'Kilifi', 'Kwale', 'Taita Taveta', 'Muranga', 'Kirinyaga', 'Embu', 'Makueni', 'Kitui', 'Nandi', 'Kericho', 'Bomet', 'Trans Nzoia', 'Bungoma', 'Busia', 'Siaya', 'Homa Bay', 'Migori', 'Kisii', 'Nyamira', 'Vihiga', 'Kakamega', 'Lamu', 'Garissa', 'Wajir', 'Mandera', 'Marsabit', 'Turkana', 'Samburu', 'Isiolo', 'West Pokot', 'Elgeyo Marakwet', 'Narok', 'Tana River', 'Lamu', 'Taita Taveta'].sort().filter((v, i, a) => a.indexOf(v) === i).map((c) => (
+              <option key={c} value={c}>{c}</option>
+            ))}
+          </select>
+          <select
+            className="input-ht capitalize"
             required
             value={form.town}
             onChange={(e) => setForm({ ...form, town: e.target.value })}
-          />
+          >
+            <option value="">Select town/area</option>
+            {TOWNS_BY_COUNTY[form.county]?.map((t) => (
+              <option key={t} value={t}>{t}</option>
+            ))}
+          </select>
           <input
             className="input-ht"
-            placeholder="Public area hint (optional)"
+            placeholder="Area label (e.g. Northern Kiambu corridor)"
             value={form.area_label}
             onChange={(e) => setForm({ ...form, area_label: e.target.value })}
           />

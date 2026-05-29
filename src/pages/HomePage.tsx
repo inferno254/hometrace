@@ -1,10 +1,14 @@
+import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
-import { ArrowRight, Shield, Sparkles } from 'lucide-react'
+import { ArrowRight, Shield, Sparkles, Heart, GitCompare, Calculator } from 'lucide-react'
+import { usePageMeta } from '../lib/seo'
 import { supabase } from '../lib/supabase'
 import { env, supabaseConfigured } from '../lib/env'
 import { PropertyCard } from '../components/PropertyCard'
 import { FadeIn } from '../components/FadeIn'
+import { AreaInsights } from '../components/AreaInsights'
+import { BudgetCalculator } from '../components/BudgetCalculator'
 import type { PublicPropertyRow } from '../types/property'
 
 async function loadFeatured(): Promise<PublicPropertyRow[]> {
@@ -33,7 +37,10 @@ function SkeletonCard() {
 }
 
 export function HomePage() {
+  usePageMeta('', 'Search available homes across Nairobi, Kiambu, Machakos, Kajiado and more — honest prices, broad locations, real availability.')
   const configured = supabaseConfigured()
+  const [showCalc, setShowCalc] = useState(false)
+
   const q = useQuery({
     queryKey: ['public-properties'],
     queryFn: loadFeatured,
@@ -56,8 +63,7 @@ export function HomePage() {
             </h1>
             <p className="max-w-xl text-lg text-zinc-400">
               Browse real listings with <strong className="text-zinc-200">prices and broad locations</strong>.
-              Exact pins and owner lines stay with our team — you call <strong>HomeTrace</strong> and we unlock
-              the next step.
+              Save favorites, compare side-by-side, and check your budget — all before you call.
             </p>
             <div className="flex flex-wrap gap-3">
               <Link
@@ -76,16 +82,32 @@ export function HomePage() {
               )}
             </div>
           </FadeIn>
-          <FadeIn delay={150} className="glass-card flex-1 p-6 md:max-w-md">
-            <div className="flex items-start gap-3">
-              <Shield className="mt-0.5 h-8 w-8 text-violet-300" />
-              <div className="space-y-2 text-sm text-zinc-400">
-                <p className="font-display font-semibold text-white">Privacy by design</p>
-                <p>
-                  Visitors never see rooftop-accurate pins. Admins ingest coordinates for internal routing —
-                  customer maps stay high-level until you dial in.
-                </p>
+          <FadeIn delay={150} className="flex-1 space-y-4 md:max-w-md">
+            <div className="glass-card p-6">
+              <div className="flex items-start gap-3">
+                <Shield className="mt-0.5 h-8 w-8 text-violet-300" />
+                <div className="space-y-2 text-sm text-zinc-400">
+                  <p className="font-display font-semibold text-white">Privacy by design</p>
+                  <p>
+                    Visitors never see rooftop-accurate pins. Admins ingest coordinates for internal routing —
+                    customer maps stay high-level until you dial in.
+                  </p>
+                </div>
               </div>
+            </div>
+            <div className="flex gap-2">
+              <Link to="/saved" className="flex-1 glass-card p-3 text-center hover:bg-white/[0.08] transition-colors">
+                <Heart className="h-5 w-5 text-red-400 mx-auto mb-1" />
+                <p className="text-[10px] text-zinc-500">Saved</p>
+              </Link>
+              <Link to="/compare" className="flex-1 glass-card p-3 text-center hover:bg-white/[0.08] transition-colors">
+                <GitCompare className="h-5 w-5 text-cyan-400 mx-auto mb-1" />
+                <p className="text-[10px] text-zinc-500">Compare</p>
+              </Link>
+              <button onClick={() => setShowCalc(true)} className="flex-1 glass-card p-3 text-center hover:bg-white/[0.08] transition-colors">
+                <Calculator className="h-5 w-5 text-violet-400 mx-auto mb-1" />
+                <p className="text-[10px] text-zinc-500">Budget</p>
+              </button>
             </div>
           </FadeIn>
         </div>
@@ -126,15 +148,24 @@ export function HomePage() {
           <p className="text-zinc-500 text-center py-12">No published listings yet. Admins can add homes from /admin.</p>
         )}
         {configured && q.data && q.data.length > 0 && (
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {q.data.map((p, i) => (
-              <FadeIn key={p.id} delay={i * 80}>
-                <PropertyCard property={p} />
+          <>
+            {configured && q.data && (
+              <FadeIn className="mb-8">
+                <AreaInsights properties={q.data} />
               </FadeIn>
-            ))}
-          </div>
+            )}
+            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+              {q.data.map((p, i) => (
+                <FadeIn key={p.id} delay={i * 80}>
+                  <PropertyCard property={p} />
+                </FadeIn>
+              ))}
+            </div>
+          </>
         )}
       </section>
+
+      {showCalc && <BudgetCalculator onClose={() => setShowCalc(false)} />}
     </>
   )
 }
